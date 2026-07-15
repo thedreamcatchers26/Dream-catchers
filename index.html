@@ -667,6 +667,13 @@
       clip-path: inset(0 0 100% 0);
       transform: translateY(8px);
       transition: opacity .8s ease, clip-path 1.15s cubic-bezier(.19,1,.22,1), transform 1.15s cubic-bezier(.19,1,.22,1);
+      /* Pure-CSS safety net: if JavaScript never runs at all on some
+         mobile browser/webview, this guarantees the section still becomes
+         visible on its own after a few seconds instead of staying blank. */
+      animation: forceReveal 0.01s linear 4s forwards;
+    }
+    @keyframes forceReveal{
+      to{ opacity: 1; clip-path: inset(0 0 0 0); transform: translateY(0); }
     }
     .fade-in.is-visible{
       opacity: 1;
@@ -1049,9 +1056,28 @@
       });
     }, { threshold: 0.15, rootMargin: '0px 0px -40px 0px' });
 
-    document.querySelectorAll('.fade-in').forEach(function(el){
+    var fadeEls = document.querySelectorAll('.fade-in');
+    fadeEls.forEach(function(el){
       io.observe(el);
     });
+
+    // Safety net: some mobile browsers (older webviews, local file:// pages,
+    // or odd viewport/toolbar resize timing) never fire the intersection
+    // callback for one reason or another. If that happens the content would
+    // stay stuck at opacity:0 forever. So force-reveal anything still
+    // hidden a couple seconds after load, just in case.
+    function revealStragglers(){
+      fadeEls.forEach(function(el){
+        el.classList.add('is-visible');
+      });
+    }
+    window.addEventListener('load', function(){
+      setTimeout(revealStragglers, 2000);
+    });
+    // also cover the case where 'load' already fired before this script ran
+    if (document.readyState === 'complete') {
+      setTimeout(revealStragglers, 2000);
+    }
   })();
 
   // scroll progress bar
